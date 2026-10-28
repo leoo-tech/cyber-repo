@@ -1,93 +1,96 @@
-# Desafio DIO: Modelagem e consultas com Neo4j
+# Criando um Algoritmo de Recomendação de Músicas com Base em Grafos
 
-Projeto prático de banco de dados em grafos com Neo4j e Cypher. O cenário usado é uma plataforma fictícia de streaming, em que pessoas assistem a filmes e podem recomendar títulos a outras pessoas.
+Projeto do desafio da DIO que utiliza **Neo4j** e **Cypher** para modelar ouvintes, músicas e artistas e gerar recomendações com base nos hábitos de escuta e em pessoas com gostos semelhantes.
 
-## Objetivos
-- Modelar nós, relacionamentos e propriedades.
-- Carregar dados de arquivos CSV com Cypher.
-- Consultar recomendações e padrões de visualização.
-- Praticar atualização e remoção segura de dados.
+## Objetivo
+Construir uma prova de conceito de recomendação: para um ouvinte, encontrar músicas que ele ainda não ouviu, mas que foram ouvidas e bem avaliadas por outros ouvintes com preferências parecidas.
 
 ## Modelo do grafo
 
-- `(:Pessoa {id, nome, cidade})`
-- `(:Filme {id, titulo, genero, ano})`
-- `(:Pessoa)-[:ASSISTIU {nota}]->(:Filme)`
-- `(:Pessoa)-[:SEGUE]->(:Pessoa)`
-- `(:Pessoa)-[:RECOMENDOU]->(:Filme)`
+- `(:Ouvinte {id, nome, cidade})`
+- `(:Musica {id, titulo, genero, ano})`
+- `(:Artista {id, nome})`
+- `(:Ouvinte)-[:OUVIU {nota}]->(:Musica)`
+- `(:Artista)-[:CRIOU]->(:Musica)`
+- `(:Ouvinte)-[:SEGUE]->(:Ouvinte)`
 
 ```mermaid
 graph LR
-  P1[Pessoa] -->|ASSISTIU: nota| F[Filme]
-  P1 -->|SEGUE| P2[Pessoa]
-  P2 -->|RECOMENDOU| F
+  O1[Ouvinte] -->|OUVIU: nota| M[Musica]
+  A[Artista] -->|CRIOU| M
+  O1 -->|SEGUE| O2[Ouvinte]
+  O2 -->|OUVIU: nota| M2[Musica]
 ```
 
-## Estrutura
+## Estrutura do projeto
 
-- `data/pessoas.csv`: amostra fictícia de pessoas.
-- `data/filmes.csv`: amostra fictícia de filmes.
-- `data/assistiu.csv`: relacionamentos de visualização.
+- `data/ouvintes.csv`: ouvintes fictícios.
+- `data/artistas.csv`: artistas fictícios.
+- `data/musicas.csv`: catálogo de músicas.
+- `data/reproducoes.csv`: histórico de escuta e notas.
 - `cypher/01_constraints.cypher`: restrições de unicidade.
-- `cypher/02_load_data.cypher`: carga dos dados.
-- `cypher/03_business_queries.cypher`: consultas de negócio.
+- `cypher/02_load_data.cypher`: importação de dados.
+- `cypher/03_business_queries.cypher`: exploração e recomendações.
 - `cypher/04_safe_updates_deletes.cypher`: exemplos de atualização e exclusão.
 - `docs/modelo.md`: dicionário e modelo do grafo.
 
 ## Como executar
 
-1. Inicie uma instância do Neo4j (Neo4j Desktop ou Aura).
-2. Abra o Neo4j Browser e selecione o banco desejado.
-3. Copie e execute `cypher/01_constraints.cypher`.
-4. Coloque os CSVs em um local acessível pelo banco. Em instalações locais, use a pasta `import` da instância e ajuste os caminhos das consultas para `file:///pessoas.csv`, `file:///filmes.csv` e `file:///assistiu.csv`.
-5. Execute `cypher/02_load_data.cypher` e depois as consultas em `cypher/03_business_queries.cypher`.
+1. Inicie um banco Neo4j local pelo Neo4j Desktop ou use uma instância Neo4j compatível.
+2. Coloque os quatro CSVs na pasta `import` da instância local.
+3. Abra o Neo4j Browser e execute `cypher/01_constraints.cypher`.
+4. Execute `cypher/02_load_data.cypher` para importar os dados.
+5. Execute as consultas em `cypher/03_business_queries.cypher`. Para testar recomendações por pessoas seguidas, a consulta inclui um exemplo de relacionamento `SEGUE`.
+6. Para conferir o esquema, execute `CALL db.schema.visualization()`.
 
-> Observação: no Neo4j Aura, o acesso a arquivos locais via `file:///` não funciona do mesmo modo que no Desktop. Use o mecanismo de importação disponível no ambiente ou adapte as consultas para os arquivos hospedados em um endereço acessível.
+**Nota sobre importação:** os caminhos `file:///...` são apropriados para a pasta de importação em instalações locais, conforme a configuração do Neo4j. No Aura, use um método de importação compatível com o ambiente, como arquivos acessíveis por URL ou as ferramentas de importação disponíveis.
 
-## Perguntas de negócio
+## Como funciona a recomendação
 
-1. Quais filmes cada pessoa assistiu?
-2. Quais filmes receberam as melhores notas médias?
-3. Quais filmes ainda não foram assistidos por uma pessoa?
-4. Quais títulos foram recomendados por pessoas seguidas pelo usuário?
-5. Como visualizar o esquema carregado? Execute `CALL db.schema.visualization()`.
+A consulta de recomendação identifica músicas ouvidas e bem avaliadas por outros ouvintes que o usuário segue, exclui músicas que o usuário já ouviu e ordena os resultados pela nota média. É uma regra explicável e simples, adequada a um projeto inicial. Em um sistema real, seria possível combinar gênero, artistas favoritos, popularidade, recência e métricas de avaliação.
+
+## Perguntas que o grafo responde
+
+1. Quais músicas um ouvinte já ouviu e que notas deu?
+2. Quais músicas têm as melhores avaliações médias?
+3. Quais músicas ainda não foram ouvidas por determinado usuário?
+4. Quais músicas podem ser recomendadas a partir das preferências de pessoas seguidas?
+5. Quais artistas criaram cada música?
 
 ## Cuidados com exclusões
 
-- `DELETE r` remove apenas o relacionamento `r`.
-- `DELETE n` falha se o nó ainda tiver relacionamentos.
-- `DETACH DELETE n` remove o nó e os relacionamentos ligados a ele. Use com atenção.
-- `REMOVE n:Label` remove apenas o label indicado.
+- `DELETE r` remove apenas o relacionamento indicado.
+- `DELETE n` não funciona se o nó ainda tiver relacionamentos.
+- `DETACH DELETE n` remove o nó e todos os relacionamentos conectados. Use com cuidado.
+- `REMOVE n:Label` retira apenas o label informado.
 
-Faça testes de exclusão em um banco de desenvolvimento e confirme o resultado com uma consulta `MATCH` antes de executar operações destrutivas.
+Faça testes em uma base de desenvolvimento antes de executar operações destrutivas.
 
 ## Troubleshooting
 
-- **Nenhum CSV encontrado:** confira a pasta `import`, o nome do arquivo e as permissões de leitura.
-- **Erro de unicidade:** verifique se os IDs dos CSVs não estão duplicados.
-- **Relacionamentos duplicados após reexecutar a carga:** os scripts usam `MERGE` para evitar duplicação por chave.
-- **Caminho de arquivo não aceito:** confirme o ambiente Neo4j e ajuste o método de importação conforme Desktop ou Aura.
+- **CSV não encontrado:** confirme a pasta `import`, o nome e as permissões do arquivo.
+- **IDs duplicados:** confira os IDs dos CSVs e as restrições de unicidade.
+- **Dados duplicados após reimportação:** os scripts usam `MERGE` para nós e relacionamentos identificados por chaves.
+- **Nenhuma recomendação retornada:** confira se existem relacionamentos `SEGUE`, avaliações e músicas ainda não ouvidas pelo usuário de teste.
 
 ## Evidências visuais
 
-Depois de executar as consultas, salve capturas do Neo4j Browser mostrando o grafo e os resultados e adicione-as em `docs/screenshots/`. As capturas precisam ser geradas a partir de uma execução real; não há imagens de resultados simulados neste repositório.
+Após executar as consultas no Neo4j Browser, salve capturas reais do grafo e dos resultados em `docs/screenshots/`. As imagens devem ser geradas após a execução, para comprovar que o modelo funciona.
 
 ## Tecnologias
 
 - Neo4j
 - Cypher
 - CSV
-- Mermaid para um diagrama inicial
+- Mermaid para diagramas no README
 
-## Dados
-
-Todos os dados deste exemplo são fictícios e foram criados apenas para fins de estudo.
+Todos os dados incluídos são fictícios e servem apenas para fins educacionais.
 
 ## Referências
 
-- Documentação Cypher: https://neo4j.com/docs/cypher-manual/current/
-- Importação de CSV: https://neo4j.com/docs/cypher-manual/current/clauses/load-csv/
+- Manual Cypher: https://neo4j.com/docs/cypher-manual/current/
+- Importação CSV: https://neo4j.com/docs/cypher-manual/current/clauses/load-csv/
 - Exemplos oficiais: https://github.com/neo4j-graph-examples
 
 ---
-Projeto de estudo para o desafio da DIO. Personalize as consultas, acrescente suas evidências e descreva aprendizados reais antes de entregar na plataforma.
+Projeto de estudo para o desafio DIO. Execute as consultas, adicione capturas reais e registre os aprendizados e ajustes que você fizer antes da entrega.
