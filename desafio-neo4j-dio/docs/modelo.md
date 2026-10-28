@@ -1,34 +1,39 @@
-# Modelo do grafo
+# Modelo do grafo: recomendação de músicas
 
-## Entidades
+## Nós
 
-| Label | Propriedades | Descrição |
+| Label | Propriedades | Finalidade |
 |---|---|---|
-| `Pessoa` | `id`, `nome`, `cidade` | Pessoa usuária fictícia |
-| `Filme` | `id`, `titulo`, `genero`, `ano` | Título do catálogo |
+| `Ouvinte` | `id`, `nome`, `cidade` | Pessoa que escuta músicas |
+| `Musica` | `id`, `titulo`, `genero`, `ano` | Faixa musical do catálogo |
+| `Artista` | `id`, `nome` | Artista associado a uma faixa |
 
 ## Relacionamentos
 
 | Tipo | Origem | Destino | Propriedades |
 |---|---|---|---|
-| `ASSISTIU` | `Pessoa` | `Filme` | `nota` (inteiro de 1 a 5) |
-| `SEGUE` | `Pessoa` | `Pessoa` | Nenhuma neste exemplo |
-| `RECOMENDOU` | `Pessoa` | `Filme` | Opcional para extensões futuras |
+| `OUVIU` | `Ouvinte` | `Musica` | `nota` de 1 a 5 |
+| `CRIOU` | `Artista` | `Musica` | Nenhuma neste exemplo |
+| `SEGUE` | `Ouvinte` | `Ouvinte` | Nenhuma neste exemplo |
 
 ## Diagrama
 
 ```mermaid
 graph TD
-    Pessoa -->|ASSISTIU nota| Filme
-    Pessoa -->|SEGUE| Pessoa
-    Pessoa -->|RECOMENDOU| Filme
+    Ouvinte -->|OUVIU nota| Musica
+    Artista -->|CRIOU| Musica
+    Ouvinte -->|SEGUE| Ouvinte
 ```
 
-Os CSVs fornecidos populam `Pessoa`, `Filme` e `ASSISTIU`. Para testar recomendações por pessoas seguidas, crie alguns relacionamentos `SEGUE`, por exemplo:
+## Lógica de recomendação
+
+Para um ouvinte-alvo, a consulta encontra músicas avaliadas com nota 4 ou 5 por pessoas que ele segue. Em seguida, exclui músicas que o alvo já ouviu e ordena as sugestões pela média das notas. É um modelo inicial, explicável e fácil de ampliar.
+
+## Teste rápido
 
 ```cypher
-MATCH (ana:Pessoa {id: 'P001'}), (bruno:Pessoa {id: 'P002'})
+MATCH (ana:Ouvinte {id: 'O001'}), (bruno:Ouvinte {id: 'O002'})
 MERGE (ana)-[:SEGUE]->(bruno);
 ```
 
-O relacionamento `RECOMENDOU` está reservado para uma extensão do exercício; a consulta inicial usa os filmes assistidos por pessoas seguidas como recomendações potenciais.
+Os dados são fictícios e destinados apenas a estudo.
